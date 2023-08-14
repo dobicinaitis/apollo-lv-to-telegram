@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <atom:link href="https://www.apollo.lv/rss" rel="self" type="application/rss+xml"/>
+    <generator>RSS Generator 2.1.1</generator>
+    <docs>http://www.rssboard.org/rss-specification</docs>
+    <title>Apollo.lv</title>
+    <language>lv</language>
+    <pubDate>Thu, 1 Jan 1970 00:00:00 +0000</pubDate>
+    <link>https://www.apollo.lv</link>
+    <description>bla, bla, bla</description>
+    <image>
+      <url>https://f.pmo.ee/logos/4132/9b2b009765ca83bf3a4f0d59da634a02.svg</url>
+      <title>Apollo.lv</title>
+      <link>https://www.apollo.lv</link>
+      <width>400</width>
+      <height>115</height>
+      <description>bla, bla, bla</description>
+    </image>
+    <item>
+      <title>VIDEO ⟩ Elon Musk SHOCKS the World by Selling Twitter for Just 1 DOGE! Is This Real or a Prank?</title>
+      <description>In a jaw-dropping turn of events, tech maverick Elon Musk has sent the Twitterverse into a frenzy by allegedly selling the social media giant Twitter for a mere 1 DOGE, the cryptocurrency that started as a joke. Is this a wild stunt from the eccentric billionaire, or is there more to the story? Get ready for a rollercoaster ride of speculation and disbelief as the internet tries to make sense of Musk's latest move! 🚀🐕</description>
+      <link>https://t.ly/nSXIV</link>
+      <guid isPermaLink="false">pm#7824280</guid>
+      <pubDate>Thu, 1 Jan 1970 00:00:00 +0300</pubDate>
+      <author>Apollo.lv</author>
+      <category domain="https://www.apollo.lv">Apollo.lv</category>
+      <category domain="https://www.apollo.lv/section/4435">Ziņas</category>
+      <category domain="https://www.apollo.lv/section/4437">Sabiedrība un politika</category>
+    </item>
+    <item>
+      <title>Unbelievable! Teen Prodigy Shatters Records in Jaw-Dropping Basketball Feat You Have to See to Believe!</title>
+      <description>Prepare to be amazed as a young basketball prodigy defies all expectations, setting the court on fire with incredible skills that seem almost superhuman! From gravity-defying dunks to pinpoint accuracy from downtown, this rising star has the sports world in a frenzy. Find out who this sensational player is and witness firsthand the awe-inspiring moments that have everyone asking: Is this the next basketball legend in the making? 🏀🌟</description>
+      <link>https://t.ly/nSXIV</link>
+      <guid isPermaLink="false">pm#7824277</guid>
+      <pubDate>Thu, 1 Jan 1970 00:00:00 +0300</pubDate>
+      <author>LETA</author>
+      <category domain="https://www.apollo.lv">Apollo.lv</category>
+      <category domain="https://www.apollo.lv/section/4428">Sports</category>
+      <category domain="https://www.apollo.lv/section/4445">Basketbols</category>
+      <enclosure url="https://t.ly/4nyyJ" length="" type="image/jpeg"/>
+    </item>
+  </channel>
+</rss>

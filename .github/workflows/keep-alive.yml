@@ -1,0 +1,32 @@
+# GitHub will suspend scheduled workflows in repositories that haven't had any activity in the last 60 days.
+# This workflow will periodically make a dummy commit to the "keep-alive" branch to keep other scheduled workflows running.
+name: keep-alive
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 1 * *"
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v3
+      - name: Fetch all branches
+        run: |
+          git fetch
+      - name: Checkout the keep-alive branch
+        run: |
+          git checkout keep-alive 2>/dev/null || git checkout --orphan keep-alive && \
+          git reset && git status --porcelain | awk '{print $2}' | xargs -I {} rm -rf {}
+      - name: Configure Git committer identity
+        run: |
+          git config --global user.name "keep-alive workflow"
+          git config --global user.email "<>"
+      - name: Add an empty commit
+        run: |
+          git commit --allow-empty -m "+60 days ⌛"
+      - name: Push the commit
+        run: |
+          git push origin keep-alive

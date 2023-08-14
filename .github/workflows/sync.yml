@@ -1,0 +1,46 @@
+name: sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      FEED_READER_TOKEN: ${{ secrets.FEED_READER_TOKEN }}
+      FEED_READER_CHANNEL_ID: ${{ vars.FEED_READER_CHANNEL_ID }}
+      FEED_READER_STATUS_FILE: ${{ vars.FEED_READER_STATUS_FILE }}
+      FEED_READER_DEBUG: ${{ vars.FEED_READER_DEBUG }}
+      FEED_READER_READ_BUTTON_LABEL: ${{ vars.FEED_READER_READ_BUTTON_LABEL }}
+    steps:
+      - name: Download JAR from the latest release
+        uses: robinraju/release-downloader@v1.8
+        with:
+          latest: true
+          fileName: "apollo-lv-to-telegram-*.jar"
+      - name: Rename JAR
+        run: mv apollo-lv-to-telegram-*.jar apollo-lv-to-telegram.jar
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Download status file
+        if: ${{ env.FEED_READER_STATUS_FILE != '' }}
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: sync.yml
+          name: ${{ env.FEED_READER_STATUS_FILE }}
+          search_artifacts: true
+          if_no_artifact_found: warn
+      - name: Post new article headlines to Telegram
+        run: java -jar apollo-lv-to-telegram.jar
+      - name: Save status file
+        if: ${{ env.FEED_READER_STATUS_FILE != '' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.FEED_READER_STATUS_FILE }}
+          path: ${{ env.FEED_READER_STATUS_FILE }}

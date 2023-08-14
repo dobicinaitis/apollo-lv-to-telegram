@@ -1,0 +1,163 @@
+plugins {
+    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("io.micronaut.application") version "4.0.2"
+    id("me.qoomon.git-versioning") version "6.4.1"
+    id("com.adarshr.test-logger") version "3.2.0"
+}
+
+repositories {
+    mavenCentral()
+}
+
+group = "dev.dobicinaitis"
+version = '0.0.0'
+ext.appBuild = 'undefined'
+jar.enabled = false
+
+// get version and build number from git
+gitVersioning.apply {
+    refs {
+        considerTagsOnBranches = true
+        tag('v(?<version>.*)') {
+            version = '${ref.version}'
+            properties_ = ['appBuild': '${commit.short}${dirty}']
+        }
+        branch('.+') {
+            describeTagPattern = 'v(?<version>.*)'
+            version = '${describe.tag.version}-SNAPSHOT'
+            properties_ = ['appBuild': '${commit.short}${dirty}']
+        }
+    }
+    // fallback configuration in case no matching git refs are found
+    rev {
+        version = '${version}-SNAPSHOT'
+        properties_ = ['appBuild': '${commit.short}${dirty}']
+    }
+}
+
+dependencies {
+    implementation("info.picocli:picocli")
+    implementation("io.micronaut.picocli:micronaut-picocli:5.0.1")
+    implementation("com.github.tulskiy:jkeymaster:1.3")
+    implementation("ch.qos.logback:logback-classic")
+    implementation("org.fusesource.jansi:jansi:2.4.0")
+    implementation("com.apptasticsoftware:rssreader:3.4.5")
+    implementation("org.telegram:telegrambots:6.7.0")
+    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.google.guava:guava:32.1.2-jre")
+    testImplementation("org.junit-pioneer:junit-pioneer:2.0.1")
+    testImplementation("com.github.tomakehurst:wiremock-jre8-standalone:2.35.0")
+    annotationProcessor("org.projectlombok:lombok")
+    annotationProcessor("info.picocli:picocli-codegen")
+    testImplementation("org.projectlombok:lombok:1.18.28")
+    testAnnotationProcessor("org.projectlombok:lombok")
+    compileOnly("org.projectlombok:lombok")
+    runtimeOnly("org.yaml:snakeyaml")
+}
+
+
+application {
+    mainClass.set("dev.dobicinaitis.feedreader.Application")
+}
+
+java {
+    sourceCompatibility = JavaVersion.toVersion("17")
+    targetCompatibility = JavaVersion.toVersion("17")
+}
+
+micronaut {
+    testRuntime("junit5")
+    processing {
+        incremental(true)
+        annotations("dev.dobicinaitis.*")
+    }
+}
+
+def appVersion = version
+shadowJar {
+    archiveVersion = "${appVersion}"
+    manifest {
+        attributes(
+                'Application-Version': "${appVersion}",
+                'Application-Build': "${appBuild}"
+        )
+    }
+}
+
+build.doLast {
+    // remove redundant artifacts
+    delete fileTree(dir: "${project.buildDir}/libs/", include: "${rootProject.name}**runner.jar")
+    // get rid of the "-all" suffix
+    ant.move(file: "${project.buildDir}/libs/${rootProject.name}-${appVersion}-all.jar", tofile: "${project.buildDir}/libs/${rootProject.name}-${appVersion}.jar")
+}
+
+test {
+    jvmArgs = [
+            // required by junit-pioneer to set environment variables
+            '--add-opens', 'java.base/java.util=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.lang=ALL-UNNAMED'
+    ]
+}
+
+testlogger {
+    theme 'mocha-parallel'
+    showExceptions true
+    showStackTraces true
+    showFullStackTraces false
+    showCauses true
+    slowThreshold 2000
+    showSummary true
+    showSimpleNames true
+    showPassed true
+    showSkipped true
+    showFailed true
+    showOnlySlow false
+    showStandardStreams true
+    showPassedStandardStreams false
+    showSkippedStandardStreams true
+    showFailedStandardStreams true
+    logLevel 'quiet' // 'lifecycle'
+}
+
+// Create a simple commit based changelog
+abstract class Changelog extends DefaultTask {
+    @TaskAction
+    def print() {
+        def logCommand = "git log --no-merges --reverse --pretty=\"- %s → %h\""
+        def commitRange = ""
+        def tagCount = ["bash", "-c", "git tag | wc -l"].execute().text.trim().toInteger()
+        def headTag = ["bash", "-c", "git describe --exact-match --tags --abbrev=0 HEAD 2>/dev/null"].execute().text.trim()
+        def latestTag = ["bash", "-c", "git describe --tags --abbrev=0 2>/dev/null"].execute().text.trim()
+
+        if (tagCount > 1) {
+            def previousTag = ["bash", "-c", "git describe --tags --abbrev=0 \"${latestTag}\"^ 2>/dev/null"].execute().text.trim()
+
+            // if HEAD is tagged, then we want to show changes since the previous tag, otherwise since the latest tag
+            if (latestTag == headTag) {
+                commitRange = "${previousTag}..HEAD"
+            } else {
+                commitRange = "${latestTag}..HEAD"
+            }
+        } else if (tagCount == 1 && latestTag != headTag) {
+            commitRange = "${latestTag}..HEAD"
+        }
+
+        def commits = ["bash", "-c", "${logCommand} ${commitRange}"].execute().text.trim()
+
+        def output = """
+        # Release notes 🎁
+        ## Changes
+        ${commits}
+        - Added some new 🐞🐛🐜
+        """
+
+        output = output
+                .replaceAll(/\n\s*/, "\n") // remove leading whitespace
+                .replaceAll(/\. →/, " →")  // remove trailing dot from commit message
+                .replaceFirst("\n", "");   // remove leading newline
+
+        print(output)
+    }
+}
+
+tasks.register('changelog', Changelog)
