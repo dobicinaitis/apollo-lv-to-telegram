@@ -50,7 +50,6 @@ public class FeedReaderService {
      */
     protected List<Item> loadItems(int retriesLeft) {
         final RssReader rssReader = new RssReader(httpClient);
-        log.debug("Loading items from the RSS feed.");
         while (true) {
             try {
                 return rssReader.read(url).toList();
