@@ -26,7 +26,7 @@ class SyncServiceTest {
 
     @BeforeEach
     void setUp() {
-        syncService = new SyncService(feedServer.getUrl(), "bot-token", "channel-id");
+        syncService = new SyncService(feedServer.getFeedUrl(), "bot-token", "channel-id");
     }
 
     @AfterAll
@@ -97,7 +97,7 @@ class SyncServiceTest {
     @Test
     void shouldReadSyncStatusFromFile() throws Exception {
         // given
-        final FeedReaderService feedReader = new FeedReaderService(feedServer.getUrl());
+        final FeedReaderService feedReader = new FeedReaderService(feedServer.getFeedUrl());
         final List<Item> testFeedArticles = feedReader.getItems();
         final String title = testFeedArticles.get(0).getTitle().orElseThrow();
         final ZonedDateTime publicationDate = testFeedArticles.get(0).getPubDateZonedDateTime().orElseThrow();

@@ -23,7 +23,7 @@ class FeedReaderServiceTest {
     @Test
     void shouldReturnArticles() {
         // given
-        final String feedUrl = feedServer.getUrl();
+        final String feedUrl = feedServer.getFeedUrl();
         // when
         final FeedReaderService feedReader = new FeedReaderService(feedUrl);
         // then

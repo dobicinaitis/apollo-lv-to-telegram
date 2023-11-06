@@ -4,7 +4,6 @@ import com.google.common.util.concurrent.RateLimiter;
 import dev.dobicinaitis.feedreader.dto.Article;
 import dev.dobicinaitis.feedreader.misc.LabelHolder;
 import dev.dobicinaitis.feedreader.util.UrlUtils;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -16,6 +15,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.List;
@@ -54,7 +54,7 @@ public class TelegramService extends TelegramLongPollingBot {
      * @param articles articles to post
      * @return last posted article
      */
-    public Article postArticles(List<Article> articles) {
+    public Article postArticles(final List<Article> articles) {
         Article lastPostedArticle = null;
         int articlesPosted = 0;
         for (Article article : articles) {
@@ -93,18 +93,23 @@ public class TelegramService extends TelegramLongPollingBot {
      * @param article article to post
      * @return true if the article was posted successfully, false otherwise
      */
-    private boolean postArticle(Article article) {
+    private boolean postArticle(final Article article) {
         final SendPhoto message = new SendPhoto();
         message.setChatId(channelId);
         message.setCaption(prepareCaption(article));
         message.setParseMode("MarkdownV2");
         message.setDisableNotification(true);
-        message.setPhoto(prepareImage(article.getImageUrl()));
         message.setReplyMarkup(prepareKeyboard(article));
 
         try {
+            final InputFile imageFile = prepareImage(article.getImageUrl());
+            message.setPhoto(imageFile);
             execute(message);
             return true;
+        } catch (IOException e) {
+            log.error("Failed to prepare image: {}", e.getMessage());
+            log.debug("Will try to post a text-only article instead.");
+            return postTextOnlyArticle(article);
         } catch (TelegramApiException e) {
             log.error("Failed to send message: {}", e.getMessage());
             return false;
@@ -117,7 +122,7 @@ public class TelegramService extends TelegramLongPollingBot {
      * @param article article to post
      * @return true if the article was posted successfully, false otherwise
      */
-    private boolean postTextOnlyArticle(Article article) {
+    private boolean postTextOnlyArticle(final Article article) {
         final SendMessage message = new SendMessage();
         message.setChatId(channelId);
         message.setText(prepareCaption(article));
@@ -140,7 +145,7 @@ public class TelegramService extends TelegramLongPollingBot {
      * @param article to prepare the caption for
      * @return caption
      */
-    private String prepareCaption(Article article) {
+    private String prepareCaption(final Article article) {
         return """
                 %s *%s*
 
@@ -158,7 +163,7 @@ public class TelegramService extends TelegramLongPollingBot {
      * @param article to prepare the keyboard for
      * @return keyboard
      */
-    private InlineKeyboardMarkup prepareKeyboard(Article article) {
+    private InlineKeyboardMarkup prepareKeyboard(final Article article) {
         final InlineKeyboardButton readButton = new InlineKeyboardButton();
         readButton.setText(LabelHolder.getReadButtonLabel());
         readButton.setUrl(article.getLink());
@@ -174,9 +179,9 @@ public class TelegramService extends TelegramLongPollingBot {
      *
      * @param imageUrl URL of the image to prepare
      * @return InputFile
+     * @throws IOException if the image could not be loaded
      */
-    @SneakyThrows
-    private InputFile prepareImage(String imageUrl) {
+    protected static InputFile prepareImage(final String imageUrl) throws IOException {
         final URL url = new URL(imageUrl);
         final InputStream imageStream = url.openStream();
         final String randomFilename = UUID.randomUUID() + "." + FilenameUtils.getExtension(url.getPath());
@@ -189,7 +194,7 @@ public class TelegramService extends TelegramLongPollingBot {
      * @param text String to escape
      * @return escaped String
      */
-    public static String escapeSpecialCharacters(String text) {
+    protected static String escapeSpecialCharacters(final String text) {
         if (text == null) {
             return null;
         }
