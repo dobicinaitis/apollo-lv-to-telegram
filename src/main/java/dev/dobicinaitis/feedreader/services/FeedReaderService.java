@@ -4,23 +4,24 @@ import com.apptasticsoftware.rssreader.Item;
 import com.apptasticsoftware.rssreader.RssReader;
 import com.apptasticsoftware.rssreader.util.ItemComparator;
 import dev.dobicinaitis.feedreader.exceptions.FeedReaderRuntimeException;
+import dev.failsafe.Failsafe;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.net.ssl.SSLContext;
-import java.io.IOException;
 import java.net.http.HttpClient;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.List;
 
+import static dev.dobicinaitis.feedreader.configuration.FailsafeConfiguration.RETRY_POLICY;
+
 @Slf4j
 @AllArgsConstructor
 public class FeedReaderService {
 
     private static final int CONNECTION_TIMEOUT_IN_SECONDS = 10;
-    private static final int FEED_READ_RETRY_COUNT = 3;
 
     private final String url;
     private final HttpClient httpClient;
@@ -37,7 +38,7 @@ public class FeedReaderService {
      * @return list of RSS feed items
      */
     public List<Item> getItems() {
-        return loadItems(FEED_READ_RETRY_COUNT).stream()
+        return loadItems().stream()
                 .sorted(ItemComparator.oldestItemFirst())
                 .toList();
     }
@@ -45,22 +46,15 @@ public class FeedReaderService {
     /**
      * Loads items from the RSS feed URL.
      *
-     * @param retriesLeft number of attempts to load the RSS feed
      * @return list of RSS feed items
      */
-    protected List<Item> loadItems(int retriesLeft) {
-        final RssReader rssReader = new RssReader(httpClient);
-        while (true) {
-            try {
-                return rssReader.read(url).toList();
-            } catch (IOException e) {
-                log.error("Could not load the RSS feed, reason {}", e.getMessage());
-                retriesLeft--;
-                if (retriesLeft == 0) {
-                    throw new FeedReaderRuntimeException(e);
-                }
-            }
-            log.info("Retrying to load the RSS feed, retries left: {}", retriesLeft);
+    protected List<Item> loadItems() {
+        try {
+            return Failsafe.with(RETRY_POLICY)
+                    .get(() -> new RssReader(httpClient).read(url).toList());
+        } catch (Exception e) {
+            log.error("Could not load the RSS feed, reason: {}", e.getMessage());
+            throw new FeedReaderRuntimeException(e);
         }
     }
 

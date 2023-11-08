@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import dev.dobicinaitis.feedreader.dto.Article;
 import dev.dobicinaitis.feedreader.misc.LabelHolder;
 import dev.dobicinaitis.feedreader.util.UrlUtils;
+import dev.failsafe.Failsafe;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -13,7 +14,6 @@ import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,11 +22,14 @@ import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
+import static dev.dobicinaitis.feedreader.configuration.FailsafeConfiguration.RETRY_POLICY;
+
 @Slf4j
 public class TelegramService extends TelegramLongPollingBot {
 
     private static final char[] SPECIAL_CHARACTERS = {'\\', '`', '*', '_', '{', '}', '[', ']', '<', '>', '(', ')', '#', '+', '-', '.', '!', '|'};
     private static final int MESSAGES_PER_MINUTE = 20;
+    @SuppressWarnings("UnstableApiUsage")
     private static final RateLimiter rateLimiter = RateLimiter.create(MESSAGES_PER_MINUTE / 60.0);
 
     private final String channelId;
@@ -54,6 +57,7 @@ public class TelegramService extends TelegramLongPollingBot {
      * @param articles articles to post
      * @return last posted article
      */
+    @SuppressWarnings("UnstableApiUsage")
     public Article postArticles(final List<Article> articles) {
         Article lastPostedArticle = null;
         int articlesPosted = 0;
@@ -102,15 +106,18 @@ public class TelegramService extends TelegramLongPollingBot {
         message.setReplyMarkup(prepareKeyboard(article));
 
         try {
-            final InputFile imageFile = prepareImage(article.getImageUrl());
+            final InputFile imageFile = Failsafe.with(RETRY_POLICY)
+                    .get(() -> prepareImage(article.getImageUrl())); // obfuscate an IOException
             message.setPhoto(imageFile);
-            execute(message);
-            return true;
-        } catch (IOException e) {
-            log.error("Failed to prepare image: {}", e.getMessage());
-            log.debug("Will try to post a text-only article instead.");
+        } catch (Exception e) {
+            log.info("Failed to prepare the image file, will try to post a text-only article instead.");
             return postTextOnlyArticle(article);
-        } catch (TelegramApiException e) {
+        }
+
+        try {
+            Failsafe.with(RETRY_POLICY).run(() -> execute(message)); // obfuscate a TelegramApiException
+            return true;
+        } catch (Exception e) {
             log.error("Failed to send message: {}", e.getMessage());
             return false;
         }
@@ -131,9 +138,9 @@ public class TelegramService extends TelegramLongPollingBot {
         message.setReplyMarkup(prepareKeyboard(article));
 
         try {
-            execute(message);
+            Failsafe.with(RETRY_POLICY).run(() -> execute(message)); // obfuscate a TelegramApiException
             return true;
-        } catch (TelegramApiException e) {
+        } catch (Exception e) {
             log.error("Failed to send message: {}", e.getMessage());
             return false;
         }

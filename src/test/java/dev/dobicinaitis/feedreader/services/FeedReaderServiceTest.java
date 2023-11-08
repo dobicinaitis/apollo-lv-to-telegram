@@ -1,11 +1,13 @@
 package dev.dobicinaitis.feedreader.services;
 
+import com.apptasticsoftware.rssreader.RssReader;
 import dev.dobicinaitis.feedreader.exceptions.FeedReaderRuntimeException;
 import dev.dobicinaitis.feedreader.helpers.TestFeedServer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
+import java.io.IOException;
 import java.net.http.HttpClient;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,27 +48,12 @@ class FeedReaderServiceTest {
     void shouldRespectHttpRequestTimeoutSettings() {
         // given
         final int timeoutInSeconds = 1;
-        final int retryCount = 1;
         final String feedUrl = "https://" + NON_ROUTABLE_IP;
         final HttpClient httpClient = FeedReaderService.createHttpClient(timeoutInSeconds);
-        final FeedReaderService feedReader = new FeedReaderService(feedUrl, httpClient);
+        final RssReader rssReader = new RssReader(httpClient);
         // when, then
-        assertThrows(FeedReaderRuntimeException.class, () -> feedReader.loadItems(retryCount), "Should throw FeedReaderRuntimeException");
-        // the timeout should occur after 1 second, so anything under 3 seconds is fine
-    }
-
-    @Test
-    @Timeout(5)
-    void shouldAttemptToLoadFeedMultipleTimes(){
-        // given
-        final int timeoutPerRequestInSeconds = 1;
-        final int retryCount = 3;
-        final String feedUrl = "https://" + NON_ROUTABLE_IP;
-        final HttpClient httpClient = FeedReaderService.createHttpClient(timeoutPerRequestInSeconds);
-        final FeedReaderService feedReader = new FeedReaderService(feedUrl, httpClient);
-        // when, then
-        assertThrows(FeedReaderRuntimeException.class, () -> feedReader.loadItems(retryCount), "Should throw FeedReaderRuntimeException");
-        // the timeout should occur after 3 seconds, so anything under 5 seconds is fine
+        assertThrows(IOException.class, () -> rssReader.read(feedUrl), "Should throw IOException");
+        // the exception should be thrown in ~1s, therefore if it takes longer then 3s, the test will fail
     }
 }
 
