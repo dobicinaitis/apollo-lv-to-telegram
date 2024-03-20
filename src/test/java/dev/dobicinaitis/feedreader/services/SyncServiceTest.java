@@ -1,5 +1,6 @@
 package dev.dobicinaitis.feedreader.services;
 
+import com.apptasticsoftware.rssreader.DateTime;
 import com.apptasticsoftware.rssreader.Enclosure;
 import com.apptasticsoftware.rssreader.Item;
 import dev.dobicinaitis.feedreader.dto.Article;
@@ -151,7 +152,7 @@ class SyncServiceTest {
      * @return the prepared RSS feed item
      */
     private Item prepareRssItem(String title, String description, String link, String enclosureUrl, String enclosureType) {
-        Item item = new Item();
+        Item item = new Item(new DateTime());
         item.setTitle(title);
         item.setDescription(description);
         item.setLink(link);

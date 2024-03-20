@@ -38,12 +38,12 @@ public class TestFeedServer {
                 .withBodyFile(RSS_FILE)
                 .withHeader("Content-Type", "application/xml")
         ));
-        stubFor(get(urlEqualTo(IMAGE_FILE_RC_200)).willReturn(aResponse()
+        stubFor(get(urlEqualTo("/" + IMAGE_FILE_RC_200)).willReturn(aResponse()
                 .withStatus(200)
                 .withBodyFile(IMAGE_FILE_RC_200)
                 .withHeader("Content-Type", "image/gif")
         ));
-        stubFor(get(urlEqualTo(IMAGE_FILE_RC_503)).willReturn(aResponse()
+        stubFor(get(urlEqualTo("/" + IMAGE_FILE_RC_503)).willReturn(aResponse()
                 .withStatus(503)
                 .withBody("Service Unavailable")
         ));
