@@ -17,6 +17,8 @@ public class TestFeedServer {
     private static final String RSS_FILE = "test-rss.xml";
     public static final String IMAGE_FILE_RC_200 = "image.gif";
     public static final String IMAGE_FILE_RC_503 = "unavailable.jpg"; // does not exist
+    public static final String PAYWALLED_ARTICLE_ENDPOINT = "paywalled-article";
+    public static final String FREE_ARTICLE_ENDPOINT = "free-article";
 
     private final WireMockServer server;
 
@@ -46,6 +48,16 @@ public class TestFeedServer {
         stubFor(get(urlEqualTo("/" + IMAGE_FILE_RC_503)).willReturn(aResponse()
                 .withStatus(503)
                 .withBody("Service Unavailable")
+        ));
+        stubFor(get(urlEqualTo("/" + PAYWALLED_ARTICLE_ENDPOINT)).willReturn(aResponse()
+                .withStatus(200)
+                .withBodyFile("article-with-paywall-label.html")
+                .withHeader("Content-Type", "text/html")
+        ));
+        stubFor(get(urlEqualTo("/" + FREE_ARTICLE_ENDPOINT)).willReturn(aResponse()
+                .withStatus(200)
+                .withBodyFile("article-without-paywall-label.html")
+                .withHeader("Content-Type", "text/html")
         ));
     }
 

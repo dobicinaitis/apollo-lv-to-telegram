@@ -15,6 +15,7 @@ public class Article implements Comparable<Article> {
     private String link;
     private String imageUrl;
     private ZonedDateTime publicationDate;
+    private boolean paywalled;
 
     @Override
     public int compareTo(Article other) {

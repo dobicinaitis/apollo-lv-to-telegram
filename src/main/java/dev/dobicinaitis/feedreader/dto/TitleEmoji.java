@@ -11,7 +11,8 @@ public enum TitleEmoji {
     PHOTO("\uD83D\uDCF7"), // 📷
     PHOTO_AND_VIDEO(" \uD83D\uDCF7\uD83C\uDFAC"), // 📷🎬
     NOTICE("❗"), //❗️
-    ARTICLE("\uD83D\uDCF0"); // 📰
+    ARTICLE("\uD83D\uDCF0"), // 📰
+    PAYWALL("\uD83D\uDCB0"); // 💰
 
     private final String unicode;
 

@@ -126,7 +126,7 @@ class SyncServiceTest {
     }
 
     @Test
-    void ShouldRemoveProcessedArticles() {
+    void shouldRemoveProcessedArticles() {
         // given
         final ZonedDateTime cutOffDate = ZonedDateTime.now();
         final List<Article> articles = new ArrayList<>();
@@ -139,6 +139,16 @@ class SyncServiceTest {
         // then
         assertEquals(1, articles.size(), "Only 1 article should be left.");
         assertEquals("new", articles.get(0).getTitle(), "The newest article should be left.");
+    }
+
+    @Test
+    void shouldCheckForPresenceOfAPaywallLabel() {
+        // given
+        final String paywalledArticleUrl = feedServer.getBaseUrl() + "/" + TestFeedServer.PAYWALLED_ARTICLE_ENDPOINT;
+        final String freeArticleUrl = feedServer.getBaseUrl() + "/" + TestFeedServer.FREE_ARTICLE_ENDPOINT;
+        // when, then
+        assertTrue(syncService.hasPaywallLabel(paywalledArticleUrl), "Paywalled article should have a paywall label.");
+        assertFalse(syncService.hasPaywallLabel(freeArticleUrl), "Free article should not have a paywall label.");
     }
 
     /**
@@ -183,4 +193,5 @@ class SyncServiceTest {
         Files.write(statusFile.toPath(), jsonString.getBytes());
         return statusFile;
     }
+
 }

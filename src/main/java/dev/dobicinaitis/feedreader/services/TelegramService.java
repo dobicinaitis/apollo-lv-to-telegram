@@ -2,6 +2,7 @@ package dev.dobicinaitis.feedreader.services;
 
 import com.google.common.util.concurrent.RateLimiter;
 import dev.dobicinaitis.feedreader.dto.Article;
+import dev.dobicinaitis.feedreader.dto.TitleEmoji;
 import dev.dobicinaitis.feedreader.misc.LabelHolder;
 import dev.dobicinaitis.feedreader.util.UrlUtils;
 import dev.failsafe.Failsafe;
@@ -153,12 +154,13 @@ public class TelegramService extends TelegramLongPollingBot {
      * @return caption
      */
     private String prepareCaption(final Article article) {
+        final String paywallEmoji = article.isPaywalled() ? TitleEmoji.PAYWALL.getUnicode() : "";
         return """
                 %s *%s*
 
                 %s
                 """.formatted(
-                article.getTitleEmoji().getUnicode(),
+                paywallEmoji + article.getTitleEmoji().getUnicode(),
                 escapeSpecialCharacters(article.getTitle()),
                 escapeSpecialCharacters(article.getDescription())
         );

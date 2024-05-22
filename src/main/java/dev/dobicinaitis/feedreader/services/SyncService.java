@@ -11,6 +11,9 @@ import dev.dobicinaitis.feedreader.util.JsonUtils;
 import dev.dobicinaitis.feedreader.util.UrlUtils;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -25,6 +28,7 @@ import java.util.List;
 public class SyncService {
 
     public static final String TITLE_TAG_SEPARATOR = "⟩";
+    public static final String PAYWALL_CSS_SELECTOR = "div.article__label.article__premium-flag";
 
     private final TelegramService telegram;
     private final FeedReaderService feedReader;
@@ -67,6 +71,10 @@ public class SyncService {
         log.info("Replacing shortened links with post-redirect ones.");
         articles.parallelStream().forEach(article -> article.setLink(UrlUtils.getRedirectUrl(article.getLink())));
 
+        // Check if any of the new articles are subscription-only and set the paywalled flag accordingly.
+        log.info("Updating paywall flags.");
+        articles.parallelStream().forEach(article -> article.setPaywalled(hasPaywallLabel(article.getLink())));
+
         log.info("Posting {} new articles to Telegram.", articles.size());
         final Article lastPostedArticle = telegram.postArticles(articles);
 
@@ -90,6 +98,7 @@ public class SyncService {
 
     /**
      * Converts the RSS feed items to Article objects.
+     *
      * @param items RSS feed items
      * @return list of Article objects
      */
@@ -213,5 +222,28 @@ public class SyncService {
             log.error("Failed to write sync status to file " + statusFile.getAbsolutePath(), e);
             throw new FeedReaderRuntimeException(e);
         }
+    }
+
+    /**
+     * Parses the HTML source code of a URL to check for the presence of a paywall label.
+     *
+     * @param url article URL
+     * @return true if the article is paywalled, false otherwise
+     */
+    protected boolean hasPaywallLabel(final String url) {
+        if (url != null) {
+            try {
+                final Document htmlDocument = Jsoup.connect(url).get();
+                final Element paywallLabelElement = htmlDocument.select(PAYWALL_CSS_SELECTOR).first();
+                if (paywallLabelElement != null) {
+                    log.debug("Article is paywalled: {}", url);
+                    return true;
+                }
+            } catch (IOException e) {
+                log.error("Failed to connect to URL: {}", url, e);
+                return false;
+            }
+        }
+        return false;
     }
 }
