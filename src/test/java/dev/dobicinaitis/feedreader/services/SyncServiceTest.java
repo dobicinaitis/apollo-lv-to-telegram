@@ -1,11 +1,11 @@
 package dev.dobicinaitis.feedreader.services;
 
-import com.apptasticsoftware.rssreader.DateTime;
-import com.apptasticsoftware.rssreader.Enclosure;
 import com.apptasticsoftware.rssreader.Item;
 import dev.dobicinaitis.feedreader.dto.Article;
+import dev.dobicinaitis.feedreader.dto.SyncSettings;
 import dev.dobicinaitis.feedreader.dto.SyncStatus;
 import dev.dobicinaitis.feedreader.helpers.TestFeedServer;
+import dev.dobicinaitis.feedreader.util.ItemWrapper;
 import dev.dobicinaitis.feedreader.util.JsonUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +15,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static dev.dobicinaitis.feedreader.dto.TitleEmoji.*;
@@ -27,7 +28,12 @@ class SyncServiceTest {
 
     @BeforeEach
     void setUp() {
-        syncService = new SyncService(feedServer.getFeedUrl(), "bot-token", "channel-id");
+        final SyncSettings syncSettings = SyncSettings.builder()
+                .rssUrl(feedServer.getFeedUrl())
+                .telegramBotToken("bot-token")
+                .telegramChannelId("channel-id")
+                .build();
+        syncService = new SyncService(syncSettings);
     }
 
     @AfterAll
@@ -67,9 +73,18 @@ class SyncServiceTest {
     void shouldConvertRssItemsToArticles() {
         // given
         final List<Item> items = List.of(
-                prepareRssItem("Scientists discover a parallel universe!", "", "https://www.example.com", "", ""),
-                prepareRssItem("", "", "", "https://www.example.com/image.jpg", "image/jpeg"),
-                prepareRssItem(null, null, null, null, null)
+                ItemWrapper.builder()
+                        .title("Scientists discover a parallel universe!")
+                        .link("https://www.example.com")
+                        .build()
+                        .toRssItem(),
+                ItemWrapper.builder()
+                        .title("First ever alien selfie")
+                        .enclosureUrl("https://www.example.com/image.jpg")
+                        .enclosureType("image/jpeg")
+                        .build()
+                        .toRssItem(),
+                ItemWrapper.builder().build().toRssItem()
         );
         // when
         final List<Article> articles = syncService.convertRssItemsToArticles(items);
@@ -151,27 +166,25 @@ class SyncServiceTest {
         assertFalse(syncService.hasPaywallLabel(freeArticleUrl), "Free article should not have a paywall label.");
     }
 
-    /**
-     * Prepares a test RSS feed item.
-     *
-     * @param title         the title of the item
-     * @param description   the description of the item
-     * @param link          the link of the item
-     * @param enclosureUrl  the URL value in the enclosure
-     * @param enclosureType the type of the enclosure
-     * @return the prepared RSS feed item
-     */
-    private Item prepareRssItem(String title, String description, String link, String enclosureUrl, String enclosureType) {
-        Item item = new Item(new DateTime());
-        item.setTitle(title);
-        item.setDescription(description);
-        item.setLink(link);
-        Enclosure enclosure = new Enclosure();
-        enclosure.setUrl(enclosureUrl);
-        enclosure.setType(enclosureType);
-        enclosure.setLength(0L);
-        item.setEnclosure(enclosure);
-        return item;
+    @Test
+    void shouldExcludeUnwantedCategories() {
+        // given
+        final List<Item> rssItems = new ArrayList<>(Arrays.asList(
+                ItemWrapper.builder().title("interesting 1").categories(List.of("news", "technology")).build().toRssItem(),
+                ItemWrapper.builder().title("interesting 2").categories(List.of("news", "science")).build().toRssItem(),
+                ItemWrapper.builder().title("boring 1").categories(List.of("news", "gossip")).build().toRssItem(),
+                ItemWrapper.builder().title("boring 2").categories(List.of("news", "technology", "pascal")).build().toRssItem()
+        ));
+        final SyncSettings syncSettings = SyncSettings.builder()
+                .excludedCategories(List.of("gossip", "pascal"))
+                .build();
+        syncService = new SyncService(syncSettings);
+        // when
+        syncService.removeExcludedCategories(rssItems);
+        // then
+        assertEquals(2, rssItems.size(), "Only 2 articles should be left.");
+        assertEquals("interesting 1", rssItems.get(0).getTitle().orElse(""), "The first article should be left.");
+        assertEquals("interesting 2", rssItems.get(1).getTitle().orElse(""), "The second article should be left.");
     }
 
     /**

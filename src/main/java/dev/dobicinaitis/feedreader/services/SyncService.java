@@ -3,13 +3,14 @@ package dev.dobicinaitis.feedreader.services;
 import com.apptasticsoftware.rssreader.Enclosure;
 import com.apptasticsoftware.rssreader.Item;
 import dev.dobicinaitis.feedreader.dto.Article;
+import dev.dobicinaitis.feedreader.dto.SyncSettings;
 import dev.dobicinaitis.feedreader.dto.SyncStatus;
 import dev.dobicinaitis.feedreader.dto.TitleEmoji;
 import dev.dobicinaitis.feedreader.exceptions.FeedReaderRuntimeException;
 import dev.dobicinaitis.feedreader.misc.ArticleComparator;
 import dev.dobicinaitis.feedreader.util.JsonUtils;
 import dev.dobicinaitis.feedreader.util.UrlUtils;
-import lombok.Setter;
+import io.micronaut.core.util.CollectionUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -32,13 +33,12 @@ public class SyncService {
 
     private final TelegramService telegram;
     private final FeedReaderService feedReader;
+    private final SyncSettings settings;
 
-    @Setter
-    private File statusFile;
-
-    public SyncService(String url, String botToken, String channelId) {
-        this.telegram = new TelegramService(botToken, channelId);
-        this.feedReader = new FeedReaderService(url);
+    public SyncService(final SyncSettings settings) {
+        this.settings = settings;
+        this.telegram = new TelegramService(settings.getTelegramBotToken(), settings.getTelegramChannelId());
+        this.feedReader = new FeedReaderService(settings.getRssUrl());
     }
 
     /**
@@ -49,8 +49,9 @@ public class SyncService {
         SyncStatus syncStatus = null;
 
         log.info("Loading RSS feed items.");
-        final List<Item> items = feedReader.getItems();
+        final List<Item> items = new ArrayList<>(feedReader.getItems());
         log.info("Received {} items.", items.size());
+        removeExcludedCategories(items);
         final List<Article> articles = convertRssItemsToArticles(items);
 
         if (isStatusFileUsed()) {
@@ -93,7 +94,7 @@ public class SyncService {
     }
 
     private boolean isStatusFileUsed() {
-        return statusFile != null;
+        return settings.getStatusFile() != null;
     }
 
     /**
@@ -112,12 +113,15 @@ public class SyncService {
                 final TitleEmoji titleEmoji = pickEmoji(title);
                 final String description = item.getDescription().orElse("");
                 final String link = item.getLink().orElse("");
-                final String imageUrl = item.getEnclosure().stream()
-                        .filter(enclosure -> enclosure.getType().contains("image"))
-                        .findFirst()
-                        .map(Enclosure::getUrl)
-                        .orElse("");
                 final ZonedDateTime publicationDate = item.getPubDateZonedDateTime().orElse(null);
+                String imageUrl = "";
+                if (item.getEnclosure().isPresent() && item.getEnclosure().get().getUrl() != null) {
+                    imageUrl = item.getEnclosure().stream()
+                            .filter(enclosure -> enclosure.getType().contains("image"))
+                            .findFirst()
+                            .map(Enclosure::getUrl)
+                            .orElse("");
+                }
 
                 final Article article = Article.builder()
                         .title(sanitizedTitle)
@@ -142,29 +146,29 @@ public class SyncService {
      * @return last sync status object
      */
     protected SyncStatus readSyncStatusFromFile() {
-        if (!statusFile.exists()) {
-            log.info("Status file {} does not exist, will create a new file.", statusFile.getAbsolutePath());
+        if (!settings.getStatusFile().exists()) {
+            log.info("Status file {} does not exist, will create a new file.", settings.getStatusFile().getAbsolutePath());
             return SyncStatus.builder().build();
         }
 
-        try (final Reader reader = Files.newBufferedReader(statusFile.toPath())) {
+        try (final Reader reader = Files.newBufferedReader(settings.getStatusFile().toPath())) {
             SyncStatus syncStatus = JsonUtils.getGson().fromJson(reader, SyncStatus.class);
             if (syncStatus == null) {
-                log.warn("Status file {} was empty.", statusFile.getAbsolutePath());
+                log.warn("Status file {} was empty.", settings.getStatusFile().getAbsolutePath());
                 syncStatus = SyncStatus.builder().build();
             }
             return syncStatus;
         } catch (IOException e) {
-            log.error("Failed to read status from file " + statusFile.getAbsolutePath(), e);
+            log.error("Failed to read status from file {}", settings.getStatusFile().getAbsolutePath(), e);
             throw new FeedReaderRuntimeException(e);
         }
     }
 
     /**
-     * Removes articles that were already posted to Telegram from the latest RSS item list.
+     * Removes articles already posted to Telegram from the latest RSS item list.
      *
      * @param articles   articles to be filtered
-     * @param syncStatus last sync status containing the date of latest processed article
+     * @param syncStatus last sync status containing the date of the latest processed article
      */
     protected void removeProcessedArticles(List<Article> articles, SyncStatus syncStatus) {
         if (syncStatus == null || syncStatus.getPublicationDateOfLastPostedArticle() == null) {
@@ -180,10 +184,40 @@ public class SyncService {
     }
 
     /**
+     * Removes RSS items that belong to excluded article categories.
+     *
+     * @param items RSS items to be filtered
+     */
+    protected void removeExcludedCategories(List<Item> items) {
+        if (CollectionUtils.isNotEmpty(settings.getExcludedCategories())) {
+            log.info("Excluding items in unwanted/boring categories.");
+            final List<String> excludedCategoriesLower = convertToLowerCase(settings.getExcludedCategories());
+            items.removeIf(item -> {
+                final List<String> itemCategoriesLower = convertToLowerCase(item.getCategories());
+                final List<String> interestedCategories = new ArrayList<>(itemCategoriesLower);
+                interestedCategories.retainAll(excludedCategoriesLower);
+                return !interestedCategories.isEmpty();
+            });
+        }
+    }
+
+    /**
+     * Converts a list of strings to lowercase.
+     *
+     * @param list list of strings
+     * @return list of strings in lowercase
+     */
+    private List<String> convertToLowerCase(List<String> list) {
+        return list.stream()
+                .map(String::toLowerCase)
+                .toList();
+    }
+
+    /**
      * Removes the news site tag from the article title.
      *
      * @param title title with tag
-     * @return title without tag
+     * @return title without a tag
      */
     protected String sanitizeTitle(String title) {
         if (title == null || !title.contains(TITLE_TAG_SEPARATOR)) {
@@ -214,12 +248,12 @@ public class SyncService {
     private void writeSyncStatusToFile(SyncStatus syncStatus) {
         log.debug("Writing sync status to file: {}", syncStatus);
         try {
-            final FileWriter fileWriter = new FileWriter(statusFile);
+            final FileWriter fileWriter = new FileWriter(settings.getStatusFile());
             JsonUtils.getGson().toJson(syncStatus, fileWriter);
             fileWriter.flush();
             fileWriter.close();
         } catch (IOException e) {
-            log.error("Failed to write sync status to file " + statusFile.getAbsolutePath(), e);
+            log.error("Failed to write sync status to file {}", settings.getStatusFile().getAbsolutePath(), e);
             throw new FeedReaderRuntimeException(e);
         }
     }
@@ -245,5 +279,10 @@ public class SyncService {
             }
         }
         return false;
+    }
+
+    // For testing purposes
+    protected void setStatusFile(final File file) {
+        this.settings.setStatusFile(file);
     }
 }

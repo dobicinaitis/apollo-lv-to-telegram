@@ -10,18 +10,20 @@ Actions [workflow](https://github.com/dobicinaitis/apollo-lv-to-telegram/actions
 ## CLI usage
 
 ```commandline
-java -jar apollo-lv-to-telegram.jar [-dhV] [-u=URL] [-t=TOKEN] [-c=CHANNEL_ID] [-s=FILE] [-r=LABEL]
+java -jar apollo-lv-to-telegram.jar [-dhV] [-u=URL] [-t=TOKEN] [-c=CHANNEL_ID] [-s=FILE] [-r=LABEL] [-e=CATEGORY[,CATEGORY...]]...
 
 OPTIONS
+  -u, --url=URL                   News feed RSS URL (default: https://www.apollo.lv/rss).
+  -t, --token=TOKEN               Telegram bot token.
   -c, --channel-id=CHANNEL_ID     Telegram Channel ID.
-  -d, --debug                     Print debug information.
-  -h, --help                      Show this help message and exit.
-  -r, --read-button-label=LABEL   Label for the "Read" button in Telegram.
   -s, --status-file=FILE          File to store information about the last processed article.
                                   Used to prevent posting duplicates on repeated runs.
-  -t, --token=TOKEN               Telegram bot token.
-  -u, --url=URL                   News feed RSS URL (default: https://www.apollo.lv/rss).
+  -r, --read-button-label=LABEL   Label for the "Read" button in Telegram.
+  -e, --exclude-categories=CATEGORY[,CATEGORY...]
+                                  List of article categories to exclude.
   -V, --version                   Print version information and exit.
+  -d, --debug                     Print debug information.
+  -h, --help                      Show this help message and exit.
 ```
 
 ## Environment variables
@@ -30,14 +32,15 @@ Most CLI parameters can also be provided via environment variables.
 
 **Mapping**
 
-| Option                | Environment variable            | Value example             |
-|-----------------------|---------------------------------|---------------------------|
-| `--url`               | `FEED_READER_URL`               | https://www.apollo.lv/rss |
-| `--token`             | `FEED_READER_TOKEN`             | 1234567890:ABCDEF...      |
-| `--channel-id`        | `FEED_READER_CHANNEL_ID`        | -1234567890000            |
-| `--status-file`       | `FEED_READER_STATUS_FILE`       | `last-sync-status.json`   |
-| `--read-button-label` | `FEED_READER_READ_BUTTON_LABEL` | `Read`                    |
-| `--debug`             | `FEED_READER_DEBUG`             | `true`/`false`            |
+| Option                 | Environment variable             | Value example             |
+|------------------------|----------------------------------|---------------------------|
+| `--url`                | `FEED_READER_URL`                | https://www.apollo.lv/rss |
+| `--token`              | `FEED_READER_TOKEN`              | 1234567890:ABCDEF...      |
+| `--channel-id`         | `FEED_READER_CHANNEL_ID`         | -1234567890000            |
+| `--status-file`        | `FEED_READER_STATUS_FILE`        | last-sync-status.json     |
+| `--read-button-label`  | `FEED_READER_READ_BUTTON_LABEL`  | Read                      |
+| `--exclude-categories` | `FEED_READER_EXCLUDE_CATEGORIES` | sports,horoscopes         |
+| `--debug`              | `FEED_READER_DEBUG`              | `true`/`false`            |
 
 This can be useful when running the application inside a container, to hide sensitive information from CI/CD logs,
 console history, etc.

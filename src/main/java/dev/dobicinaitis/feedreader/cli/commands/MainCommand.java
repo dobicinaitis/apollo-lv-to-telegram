@@ -2,6 +2,7 @@ package dev.dobicinaitis.feedreader.cli.commands;
 
 import dev.dobicinaitis.feedreader.cli.options.CommonOptions;
 import dev.dobicinaitis.feedreader.cli.providers.VersionProvider;
+import dev.dobicinaitis.feedreader.dto.SyncSettings;
 import dev.dobicinaitis.feedreader.misc.LabelHolder;
 import dev.dobicinaitis.feedreader.services.SyncService;
 import dev.dobicinaitis.feedreader.util.UrlUtils;
@@ -13,6 +14,8 @@ import picocli.CommandLine.ParameterException;
 import picocli.CommandLine.Spec;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Command(sortSynopsis = false)
@@ -20,6 +23,7 @@ public class MainCommand extends CommonOptions implements Runnable {
 
     private String url;
     private File statusFile;
+    private List<String> excludedCategories = new ArrayList<>();
 
     @Spec
     CommandSpec spec;
@@ -58,6 +62,14 @@ public class MainCommand extends CommonOptions implements Runnable {
         LabelHolder.setReadButtonLabel(label);
     }
 
+    @Option(names = {"-e", "--exclude-categories"}, paramLabel = "CATEGORY", defaultValue = "${FEED_READER_EXCLUDE_CATEGORIES}",
+            split = "\\,", splitSynopsisLabel = ",", description = "List of categories to exclude.", order = 6)
+    private void setExcludedCategories(final List<String> excludedCategories) {
+        if (excludedCategories != null) {
+            this.excludedCategories = excludedCategories;
+        }
+    }
+
     @Option(names = "--no-sync", hidden = true, defaultValue = "${FEED_NO_SYNC:-false}",
             description = "A hidden parameter used to ease testing.")
     private boolean syncDisabled;
@@ -65,6 +77,7 @@ public class MainCommand extends CommonOptions implements Runnable {
 
     public void run() {
         log.debug("Application version {}, build {}", VersionProvider.getVersionNumber(), VersionProvider.getBuildNumber());
+        log.debug("Will exclude articles in categories: {}.", excludedCategories);
 
         if (syncDisabled || isOptionTest()) {
             log.info("Sync has been disabled. Won't do anything.");
@@ -72,8 +85,14 @@ public class MainCommand extends CommonOptions implements Runnable {
         }
 
         log.info("Starting feed sync, RSS URL: {}", url);
-        final SyncService syncService = new SyncService(url, botToken, channelId);
-        syncService.setStatusFile(statusFile);
+        final SyncSettings syncSettings = SyncSettings.builder().
+                rssUrl(url).
+                telegramBotToken(botToken).
+                telegramChannelId(channelId).
+                statusFile(statusFile).
+                excludedCategories(excludedCategories).
+                build();
+        final SyncService syncService = new SyncService(syncSettings);
         syncService.sync();
     }
 
