@@ -24,11 +24,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class SyncServiceTest {
 
     private static final TestFeedServer feedServer = new TestFeedServer();
+    private SyncSettings syncSettings;
     private SyncService syncService;
 
     @BeforeEach
     void setUp() {
-        final SyncSettings syncSettings = SyncSettings.builder()
+        syncSettings = SyncSettings.builder()
                 .rssUrl(feedServer.getFeedUrl())
                 .telegramBotToken("bot-token")
                 .telegramChannelId("channel-id")
@@ -115,8 +116,8 @@ class SyncServiceTest {
         // given
         final FeedReaderService feedReader = new FeedReaderService(feedServer.getFeedUrl());
         final List<Item> testFeedArticles = feedReader.getItems();
-        final String title = testFeedArticles.get(0).getTitle().orElseThrow();
-        final ZonedDateTime publicationDate = testFeedArticles.get(0).getPubDateZonedDateTime().orElseThrow();
+        final String title = testFeedArticles.getFirst().getTitle().orElseThrow();
+        final ZonedDateTime publicationDate = testFeedArticles.getFirst().getPubDateZonedDateTime().orElseThrow();
         final File statusFile = prepareStatusFile(title, publicationDate);
         syncService.setStatusFile(statusFile);
         // when
@@ -153,7 +154,7 @@ class SyncServiceTest {
         syncService.removeProcessedArticles(articles, syncStatus);
         // then
         assertEquals(1, articles.size(), "Only 1 article should be left.");
-        assertEquals("new", articles.get(0).getTitle(), "The newest article should be left.");
+        assertEquals("new", articles.getFirst().getTitle(), "The newest article should be left.");
     }
 
     @Test
@@ -175,17 +176,27 @@ class SyncServiceTest {
                 ItemWrapper.builder().title("boring 1").categories(List.of("news", "gossip")).build().toRssItem(),
                 ItemWrapper.builder().title("boring 2").categories(List.of("news", "technology", "pascal")).build().toRssItem()
         ));
-        final SyncSettings syncSettings = SyncSettings.builder()
-                .excludedCategories(List.of("gossip", "pascal"))
-                .telegramBotToken("bot-token")
-                .build();
-        syncService = new SyncService(syncSettings);
+        syncSettings.setExcludedCategories(List.of("gossip", "pascal"));
         // when
         syncService.removeExcludedCategories(rssItems);
         // then
         assertEquals(2, rssItems.size(), "Only 2 articles should be left.");
         assertEquals("interesting 1", rssItems.get(0).getTitle().orElse(""), "The first article should be left.");
         assertEquals("interesting 2", rssItems.get(1).getTitle().orElse(""), "The second article should be left.");
+    }
+
+    @Test
+    void shouldExcludePaywalledArticles() {
+        // given
+        final List<Article> articles = new ArrayList<>(Arrays.asList(
+                Article.builder().title("free").build(),
+                Article.builder().title("paywalled").paywalled(true).build()
+        ));
+        // when
+        syncService.removePaywalledArticles(articles);
+        // then
+        assertEquals(1, articles.size(), "Only 1 article should be left.");
+        assertEquals("free", articles.getFirst().getTitle(), "The free article should be left.");
     }
 
     /**

@@ -15,6 +15,7 @@ jobs:
       FEED_READER_DEBUG: ${{ vars.FEED_READER_DEBUG }}
       FEED_READER_READ_BUTTON_LABEL: ${{ vars.FEED_READER_READ_BUTTON_LABEL }}
       FEED_READER_EXCLUDE_CATEGORIES: ${{ vars.FEED_READER_EXCLUDE_CATEGORIES }}
+      FEED_READER_EXCLUDE_PAYWALLED: ${{ vars.FEED_READER_EXCLUDE_PAYWALLED }}
     steps:
       - name: Download JAR from the latest release
         uses: robinraju/release-downloader@v1.9

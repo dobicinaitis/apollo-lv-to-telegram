@@ -76,6 +76,10 @@ public class SyncService {
         log.info("Updating paywall flags.");
         articles.parallelStream().forEach(article -> article.setPaywalled(hasPaywallLabel(article.getLink())));
 
+        if (settings.isExcludePaywalled()) {
+            removePaywalledArticles(articles);
+        }
+
         log.info("Posting {} new articles to Telegram.", articles.size());
         final Article lastPostedArticle = telegram.postArticles(articles);
 
@@ -199,6 +203,18 @@ public class SyncService {
                 return !interestedCategories.isEmpty();
             });
         }
+    }
+
+    /**
+     * Removes paywalled articles from the list.
+     *
+     * @param articles excluding paywalled ones
+     */
+    protected void removePaywalledArticles(List<Article> articles) {
+        final int initialSize = articles.size();
+        articles.removeIf(Article::isPaywalled);
+        final int removedCount = initialSize - articles.size();
+        log.info("Removed {} paywalled article{}, {} remaining.", removedCount, removedCount == 1 ? "" : "s", articles.size());
     }
 
     /**

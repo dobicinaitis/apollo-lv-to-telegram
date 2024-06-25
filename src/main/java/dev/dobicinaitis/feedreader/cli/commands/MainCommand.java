@@ -70,6 +70,10 @@ public class MainCommand extends CommonOptions implements Runnable {
         }
     }
 
+    @Option(names = {"-p", "--exclude-paywalled"}, defaultValue = "${FEED_READER_EXCLUDE_PAYWALLED:-false}",
+            description = "Exclude articles that are accessible only to paying subscribers.", order = 7)
+    private boolean excludePaywalled;
+
     @Option(names = "--no-sync", hidden = true, defaultValue = "${FEED_NO_SYNC:-false}",
             description = "A hidden parameter used to ease testing.")
     private boolean syncDisabled;
@@ -85,13 +89,14 @@ public class MainCommand extends CommonOptions implements Runnable {
         }
 
         log.info("Starting feed sync, RSS URL: {}", url);
-        final SyncSettings syncSettings = SyncSettings.builder().
-                rssUrl(url).
-                telegramBotToken(botToken).
-                telegramChannelId(channelId).
-                statusFile(statusFile).
-                excludedCategories(excludedCategories).
-                build();
+        final SyncSettings syncSettings = SyncSettings.builder()
+                .rssUrl(url)
+                .telegramBotToken(botToken)
+                .telegramChannelId(channelId)
+                .statusFile(statusFile)
+                .excludedCategories(excludedCategories)
+                .excludePaywalled(excludePaywalled)
+                .build();
         final SyncService syncService = new SyncService(syncSettings);
         syncService.sync();
     }

@@ -10,7 +10,7 @@ Actions [workflow](https://github.com/dobicinaitis/apollo-lv-to-telegram/actions
 ## CLI usage
 
 ```commandline
-java -jar apollo-lv-to-telegram.jar [-dhV] [-u=URL] [-t=TOKEN] [-c=CHANNEL_ID] [-s=FILE] [-r=LABEL] [-e=CATEGORY[,CATEGORY...]]...
+java -jar apollo-lv-to-telegram.jar [-dhVp] [-u=URL] [-t=TOKEN] [-c=CHANNEL_ID] [-s=FILE] [-r=LABEL] [-e=CATEGORY[,CATEGORY...]]...
 
 OPTIONS
   -u, --url=URL                   News feed RSS URL (default: https://www.apollo.lv/rss).
@@ -21,6 +21,7 @@ OPTIONS
   -r, --read-button-label=LABEL   Label for the "Read" button in Telegram.
   -e, --exclude-categories=CATEGORY[,CATEGORY...]
                                   List of article categories to exclude.
+  -p, --exclude-paywalled         Exclude articles that are accessible only to paying subscribers.
   -V, --version                   Print version information and exit.
   -d, --debug                     Print debug information.
   -h, --help                      Show this help message and exit.
@@ -40,6 +41,7 @@ Most CLI parameters can also be provided via environment variables.
 | `--status-file`        | `FEED_READER_STATUS_FILE`        | last-sync-status.json     |
 | `--read-button-label`  | `FEED_READER_READ_BUTTON_LABEL`  | Read                      |
 | `--exclude-categories` | `FEED_READER_EXCLUDE_CATEGORIES` | sports,horoscopes         |
+| `--exclude-paywalled`  | `FEED_READER_EXCLUDE_PAYWALLED`  | `true`/`false`            |
 | `--debug`              | `FEED_READER_DEBUG`              | `true`/`false`            |
 
 This can be useful when running the application inside a container, to hide sensitive information from CI/CD logs,
