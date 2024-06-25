@@ -68,7 +68,7 @@ You'll find your Channel ID in the `result › message › chat › id` field.
 
 ### Build the application 🔨
 
-> **Note**: You will need Java 17 or later to build the project locally.
+> **Note**: You will need Java 22 or later to build the project locally.
 
 Clone this repository and build the application:
 

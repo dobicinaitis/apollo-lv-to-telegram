@@ -177,6 +177,7 @@ class SyncServiceTest {
         ));
         final SyncSettings syncSettings = SyncSettings.builder()
                 .excludedCategories(List.of("gossip", "pascal"))
+                .telegramBotToken("bot-token")
                 .build();
         syncService = new SyncService(syncSettings);
         // when
