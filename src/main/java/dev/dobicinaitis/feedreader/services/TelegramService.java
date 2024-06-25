@@ -8,13 +8,14 @@ import dev.dobicinaitis.feedreader.util.UrlUtils;
 import dev.failsafe.Failsafe;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
-import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
+import org.telegram.telegrambots.meta.generics.TelegramClient;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,30 +27,20 @@ import java.util.regex.Pattern;
 import static dev.dobicinaitis.feedreader.configuration.FailsafeConfiguration.RETRY_POLICY;
 
 @Slf4j
-public class TelegramService extends TelegramLongPollingBot {
+public class TelegramService {
 
     private static final char[] SPECIAL_CHARACTERS = {'\\', '`', '*', '_', '{', '}', '[', ']', '<', '>', '(', ')', '#', '+', '-', '.', '!', '|'};
     private static final int MESSAGES_PER_MINUTE = 20;
     @SuppressWarnings("UnstableApiUsage")
     private static final RateLimiter rateLimiter = RateLimiter.create(MESSAGES_PER_MINUTE / 60.0);
 
+    private final TelegramClient client;
     private final String channelId;
 
     public TelegramService(String token, String channelId) {
-        super(token);
+        this.client = new OkHttpTelegramClient(token);
         this.channelId = channelId;
         log.debug("Started Telegram bot, Channel ID: {}", channelId);
-    }
-
-    @Override
-    public void onUpdateReceived(Update update) {
-        // At this point we don't care about updates.
-    }
-
-    @Override
-    public String getBotUsername() {
-        // Where is this actually used? Let's try not to set the bot name and see what brakes 🙈
-        return null;
     }
 
     /**
@@ -99,24 +90,25 @@ public class TelegramService extends TelegramLongPollingBot {
      * @return true if the article was posted successfully, false otherwise
      */
     private boolean postArticle(final Article article) {
-        final SendPhoto message = new SendPhoto();
-        message.setChatId(channelId);
-        message.setCaption(prepareCaption(article));
-        message.setParseMode("MarkdownV2");
-        message.setDisableNotification(true);
-        message.setReplyMarkup(prepareKeyboard(article));
-
+        final SendPhoto message;
         try {
             final InputFile imageFile = Failsafe.with(RETRY_POLICY)
                     .get(() -> prepareImage(article.getImageUrl())); // obfuscate an IOException
-            message.setPhoto(imageFile);
+            message = SendPhoto.builder()
+                    .chatId(channelId)
+                    .photo(imageFile)
+                    .caption(prepareCaption(article))
+                    .parseMode("MarkdownV2")
+                    .disableNotification(true)
+                    .replyMarkup(prepareKeyboard(article))
+                    .build();
         } catch (Exception e) {
             log.info("Failed to prepare the image file, will try to post a text-only article instead.");
             return postTextOnlyArticle(article);
         }
 
         try {
-            Failsafe.with(RETRY_POLICY).run(() -> execute(message)); // obfuscate a TelegramApiException
+            Failsafe.with(RETRY_POLICY).run(() -> client.execute(message)); // obfuscate a TelegramApiException
             return true;
         } catch (Exception e) {
             log.error("Failed to send message: {}", e.getMessage());
@@ -131,15 +123,16 @@ public class TelegramService extends TelegramLongPollingBot {
      * @return true if the article was posted successfully, false otherwise
      */
     private boolean postTextOnlyArticle(final Article article) {
-        final SendMessage message = new SendMessage();
-        message.setChatId(channelId);
-        message.setText(prepareCaption(article));
-        message.setParseMode("MarkdownV2");
-        message.setDisableNotification(true);
-        message.setReplyMarkup(prepareKeyboard(article));
+        final SendMessage message = SendMessage.builder()
+                .chatId(channelId)
+                .text(prepareCaption(article))
+                .parseMode("MarkdownV2")
+                .disableNotification(true)
+                .replyMarkup(prepareKeyboard(article))
+                .build();
 
         try {
-            Failsafe.with(RETRY_POLICY).run(() -> execute(message)); // obfuscate a TelegramApiException
+            Failsafe.with(RETRY_POLICY).run(() -> client.execute(message)); // obfuscate a TelegramApiException
             return true;
         } catch (Exception e) {
             log.error("Failed to send message: {}", e.getMessage());
@@ -173,14 +166,14 @@ public class TelegramService extends TelegramLongPollingBot {
      * @return keyboard
      */
     private InlineKeyboardMarkup prepareKeyboard(final Article article) {
-        final InlineKeyboardButton readButton = new InlineKeyboardButton();
-        readButton.setText(LabelHolder.getReadButtonLabel());
-        readButton.setUrl(article.getLink());
-
-        final InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
-        inlineKeyboardMarkup.setKeyboard(List.of(List.of(readButton)));
-
-        return inlineKeyboardMarkup;
+        final InlineKeyboardButton readButton = InlineKeyboardButton.builder()
+                .text(LabelHolder.getReadButtonLabel())
+                .url(article.getLink())
+                .build();
+        final InlineKeyboardRow buttonRow = new InlineKeyboardRow(readButton);
+        return InlineKeyboardMarkup.builder()
+                .keyboard(List.of(buttonRow))
+                .build();
     }
 
     /**

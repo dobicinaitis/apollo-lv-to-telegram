@@ -42,7 +42,7 @@ dependencies {
     implementation('ch.qos.logback:logback-classic:1.5.6')
     implementation("org.fusesource.jansi:jansi:2.4.1")
     implementation('com.apptasticsoftware:rssreader:3.7.0')
-    implementation("org.telegram:telegrambots:6.9.7.1")
+    implementation("org.telegram:telegrambots-client:7.4.2")
     implementation('com.google.code.gson:gson:2.10')
     implementation('com.google.guava:guava:33.2.1-jre')
     implementation("dev.failsafe:failsafe:3.3.2")
