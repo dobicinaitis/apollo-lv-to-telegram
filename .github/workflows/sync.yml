@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: "*/15 * * * *"
 
+concurrency:
+  group: ${{ github.workflow }}
+
 jobs:
   sync:
     runs-on: ubuntu-latest
