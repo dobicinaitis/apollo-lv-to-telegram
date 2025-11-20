@@ -29,7 +29,7 @@ import java.util.List;
 public class SyncService {
 
     public static final String TITLE_TAG_SEPARATOR = "⟩";
-    public static final String PAYWALL_CSS_SELECTOR = "div.article__label.article__premium-flag";
+    public static final String PAYWALL_CSS_SELECTOR = ".article__labels div:contains(Abonentiem)";
 
     private final TelegramService telegram;
     private final FeedReaderService feedReader;
